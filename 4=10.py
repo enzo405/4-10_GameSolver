@@ -1,6 +1,7 @@
 import random
 import time
 import os
+from math import factorial
 
 def askPromptInt(prompt) -> int:
     try:
@@ -25,7 +26,7 @@ def askForOperators(numberOfAsking) -> list:
     return list_operator
 
 
-def gameSolver(list_number, wanted_result, stop_at_first, list_operator):
+def gameSolver(list_number, list_operator, wanted_result, stop_at_first , equationPossibility):
     answers : list = []
     list_tries : list = []
     result = 0
@@ -72,7 +73,6 @@ def gameSolver(list_number, wanted_result, stop_at_first, list_operator):
                 indexParentheseClose = indexParentheseOpen + random_odd_number # Get the index of the close parenthese
             equations.insert(indexParentheseClose+1, ")") # Insert the close parenthese after the index
         equations_str = "".join(str(e) for e in equations) # Convert the list to a string
-
         if equations_str not in list_tries: # If the equations is not in the list of tries
             list_tries.append(equations_str) # Add the equations to the list of tries
             try: # Try to eval the equations
@@ -82,18 +82,63 @@ def gameSolver(list_number, wanted_result, stop_at_first, list_operator):
                     answers.append(equations_str) # Add the equations to the list of answers
                     if stop_at_first == True: # If stop_at_first is True
                         break # Stop the program
-            except Exception: # If the equations can't be eval
-                pass # Pass the error
+            except Exception as e: # If the equations can't be eval
+                print(e)
             start_time = time.time() # Get the current time
 
         current_time = time.time() # Get the current time
-        if int(current_time-start_time) > 10: # If the previous equations was found more than 10sec ago the program stop
+        if len(answers) > 1:
+            if len(answers) == equationPossibility:
+                break
+            else:
+                print(len(answers))
+        elif current_time-start_time >= 10:
             print("The program stop because it didn't found any equations in 10sec")
             break # Stop the program
     return answers, dict_number, number_try # Return the answers, the dict of number and the number of try
 
-def getUserConfig(test_mode):
-    if not test_mode:
+def runProgram(list_number:list, list_operator:list, wanted_result:int, stop_at_first:bool, WANTALLRESULT:bool, EQUATION_POSSIBILITY:int):
+    programStartingTime = time.time()
+    answers, dict_number, number_try = gameSolver(list_number, list_operator, wanted_result, stop_at_first, EQUATION_POSSIBILITY)
+    programEndingTime = time.time()
+    if len(answers) == 0:
+        print(f"You can't build an equation that is equal to {wanted_result} with these number => {','.join(str(n) for n in dict_number.values())}")
+    else:
+        if not stop_at_first and WANTALLRESULT:
+            for i in answers:
+                print(i)
+        else:
+            print(f"Here is the first correct equations found : {answers[0]}")
+        print(f"There are {len(answers)} answers. Found in {number_try} combination")
+    print(f"Program executed in {programEndingTime-programStartingTime} sec")
+
+
+def calculate_possibilities(list_number:list, list_operator:list):
+    num_arrangements = factorial(len(list_number)) # Calculate the number of ways to arrange numbers
+    num_operator_positions = factorial(len(list_number) - 1) // factorial(len(list_number) - 1 - len(list_operator)) # Calculate the number of ways to choose positions for operators
+    num_operator_arrangements = factorial(len(list_operator)) # Calculate the number of ways to arrange operators
+    total_possibilities = num_arrangements * num_operator_positions * num_operator_arrangements # Calculate the total number of possibilities
+    print(f"Total number of possibilities: {total_possibilities}")
+    return total_possibilities
+
+
+
+def main():
+    os.system("cls")
+    TEST_MODE = askPromptStr("Do you want to use test mode ? (y/n) ").lower() == "y"
+    ENABLESTATS = askPromptStr("Do you want to enable stats ? (y/n) ").lower() == "y"
+    WANTALLRESULT = False
+    STOPATFIRST = False
+    NUMBEROFTRY = 1000
+    STATS = {
+        "averageNumberOfTry": 0,
+        "averageTime": 0
+    }
+    DEFAULT_LIST_NUMBER = [1,2,3,4]
+    DEAFAULT_RESULT = 10
+    DEFAULT_OPERATOR = ["+","-","*"]
+
+    if not TEST_MODE:
         number_number = askPromptInt('How much number do you need')
         while number_number < 3:
             print("Number need to be higher than 3")
@@ -106,63 +151,26 @@ def getUserConfig(test_mode):
 
         list_operator = askForOperators(number_number-1)
     else:
-        list_number = [2,5,0,3]
-        wanted_result = 10
-        number_number = len(list_number)
-        list_operator = ["+","-","*","/"]
-    return list_number, wanted_result, number_number, list_operator
+        list_operator = DEFAULT_OPERATOR
+        list_number = DEFAULT_LIST_NUMBER
+        wanted_result = DEAFAULT_RESULT
 
+    EQUATION_POSSIBILITY = calculate_possibilities(list_number, list_operator)
+    runProgram(list_number, list_operator, wanted_result, STOPATFIRST, WANTALLRESULT, EQUATION_POSSIBILITY)
 
-def main(test_mode):
-    list_number : list = []
-    answer_yes : list = ["oui", "yes"]
-    stop_at_first : bool = True
+    if ENABLESTATS:
+        for i in range(0,NUMBEROFTRY):
+            programStartingTime = time.time()
+            answers, dict_number, number_try = gameSolver(list_number, list_operator, wanted_result, STOPATFIRST, EQUATION_POSSIBILITY)
+            programEndingTime = time.time()
+            
+            STATS["averageNumberOfTry"] += number_try
+            STATS["averageTime"] += programEndingTime-programStartingTime
 
-    list_number, wanted_result, number_number, list_operator = getUserConfig(test_mode)
-    
-    os.system("cls")
-
-    programStartingTime = time.time()
-    # Run the Solving program
-    answers, dict_number, number_try = gameSolver(list_number, wanted_result, stop_at_first, list_operator)
-
-    os.system('cls')
-    programEndingTime = time.time()
-
-    if len(answers) == 0:
-        print(f"You can't build an equation that is equal to {wanted_result} with these number => {','.join(str(n) for n in dict_number.values())}")
-    else:
-        wantAllResult = askPromptStr('Do you want to see all result ?')
-        os.system("cls")
-        if str.lower(wantAllResult) in answer_yes:
-            for i in answers:
-                print(i)
-        else:
-            print(f"Here is the first correct equations found : {answers[0]}")
-        print(f"There are {len(answers)} answers. Found in {number_try} combination")
-    print(f"Program executed in {programEndingTime-programStartingTime} sec")
-
-def makeStats(test_mode, number_of_try=1000):
-    stats = {
-        "averageNumberOfTry": 0,
-        "averageTime": 0
-    }
-    for i in range(0,number_of_try):
-        list_number, wanted_result, number_number, list_operator = getUserConfig(test_mode)
-
-        programStartingTime = time.time()
-        answers, dict_number, number_try = gameSolver(list_number, wanted_result, True, list_operator)
-        programEndingTime = time.time()
-        
-        stats["averageNumberOfTry"] += number_try
-        stats["averageTime"] += programEndingTime-programStartingTime
-
-    stats["averageNumberOfTry"] = stats["averageNumberOfTry"]/number_of_try
-    stats["averageTime"] = stats["averageTime"]/number_of_try
-    print(stats)
+        STATS["averageNumberOfTry"] = STATS["averageNumberOfTry"]/NUMBEROFTRY
+        STATS["averageTime"] = STATS["averageTime"]/NUMBEROFTRY
+        print(STATS)
 
 
 if __name__ == "__main__":
-    TEST_MODE = True
-    # main(TEST_MODE)
-    makeStats(TEST_MODE)
+    main()
